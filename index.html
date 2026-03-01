@@ -3,57 +3,119 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>부산 방탈출 정복 지도</title>
+    <title>부산 방탈출 정복 현황판</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
     <style>
-        body { margin: 0; padding: 0; }
-        #map { height: 100vh; width: 100%; }
-        .popup-content { font-family: sans-serif; min-width: 180px; max-height: 300px; overflow-y: auto; }
-        .theme-item { margin: 5px 0; display: flex; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 3px; }
-        .completed-marker { filter: hue-rotate(150deg) brightness(0.9); z-index: 1000 !important; }
+        body { margin: 0; font-family: 'Pretendard', sans-serif; background: #f4f4f4; }
+        #map { height: 50vh; width: 100%; border-bottom: 2px solid #ddd; }
+        .container { padding: 20px; max-width: 1000px; margin: 0 auto; }
+        h2 { border-left: 5px solid #2ecc71; padding-left: 10px; margin-bottom: 20px; }
+        
+        .region-section { background: white; border-radius: 10px; padding: 15px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .region-title { font-size: 1.2rem; font-weight: bold; color: #333; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; }
+        
+        .room-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .room-table th, .room-table td { padding: 10px; text-align: left; border-bottom: 1px solid #fafafa; }
+        .room-table th { background: #f9f9f9; font-size: 0.9rem; color: #666; }
+        
+        .theme-pill { display: inline-block; padding: 4px 10px; border-radius: 15px; font-size: 0.8rem; margin: 2px; cursor: pointer; border: 1px solid #ddd; transition: 0.2s; }
+        .theme-pill.done { background: #2ecc71; color: white; border-color: #27ae60; }
+        .theme-pill:hover { opacity: 0.8; }
+        
+        .status-badge { font-size: 0.8rem; padding: 2px 8px; border-radius: 5px; background: #eee; }
+        .all-done-badge { background: #2ecc71; color: white; }
+        
+        .completed-marker { filter: hue-rotate(150deg) brightness(0.9); }
     </style>
 </head>
 <body>
-    <div id="map"></div>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script>
-        const map = L.map('map').setView([35.1796, 129.0756], 12); // 부산 중심
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-        // 업데이트된 데이터 (큐방탈출, 부산 이스케이프 제외)
+    <div id="map"></div>
+
+    <div class="container">
+        <h2>🚩 부산 방탈출 정복 리스트</h2>
+        <div id="status-list"></div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+    <script>
+        const map = L.map('map').setView([35.1796, 129.0756], 11);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        const markers = L.markerClusterGroup();
+
+        // 데이터에 지역(region) 정보 추가
         const escapeRooms = [
-            { id: "beatphobia_seomyeon", name: "비트포비아 서면 던전", coords: [35.1531, 129.0596], themes: ["오늘 나는", "꿈의 공장", "날씨의 신", "당감동 정육점", "지하터널-2H", "고시원 살인사건", "Bar Solvay", "산장으로의 초대", "부활", "엘도라도", "AMEN", "부적", "어느 수집가의 집"] },
-            { id: "murderparker_busan", name: "머더파커 부산점", coords: [35.1558, 129.0585], themes: ["사라진 보물2056", "액션(Action)", "도굴왕", "잭(JACK)", "레디(Ready)"] },
-            { id: "secret_garden_seomyeon", name: "비밀의 화원 서면점", coords: [35.1542, 129.0608], themes: ["블라인드", "아뜰리에", "비밀의 화원", "컬러즈", "슈퍼 엔지니어", "연애학개론", "베이비 레이스"] },
-            { id: "rooms_a_seomyeon", name: "룸즈에이 부산서면점", coords: [35.1540, 129.0600], themes: ["너와 나의 이야기", "프레임 하이커", "히어로 아카데미", "퍼펙트 플랜", "요정들의 술집", "아직 버리지못한 지갑"] },
-            { id: "dumb_dumber_seomyeon", name: "덤앤더머 서면점", coords: [35.1538, 129.0602], themes: ["작전명: 옵저버", "기담", "휴가중", "글램핑", "소공녀", "Knock Knock", "크라임시티", "푸른수염", "투 앨리스", "X테마", "러브클리닉", "동전노래방"] },
-            { id: "playpoint_seomyeon", name: "플레이포인트랩", coords: [35.1545, 129.0602], themes: ["집으로", "모모게임", "그날 사진관", "재: 트라우마", "스팀 스파이어 사가", "근비빌라401호", "토이메이커", "F등급킬러: 다정리"] },
-            { id: "diaegg_busan", name: "다이아에그", coords: [35.1540, 129.0605], themes: ["레드룸", "닥터 슈나벨", "신입사원", "우시마을", "무료한 하루", "키키키키키", "그래버", "노키즈존", "개연성", "회귀"] },
-            { id: "mission_pnu", name: "미션 이스케이프 부산대점", coords: [35.2315, 129.0863], themes: ["비밀프로젝트", "영재는 못말려", "타짜", "신입사원", "변호사 업무일지"] },
-            { id: "therock_pnu", name: "더락 이스케이프 부산대점", coords: [35.2310, 129.0880], themes: ["루시드 드리밍", "하울의 안 움직이는 성", "최후의 만찬", "절대반지의 비밀", "의뢰인"] },
-            { id: "therock_ksu", name: "더락 이스케이프 경성대점", coords: [35.1375, 129.0995], themes: ["선과 칠호의 행방불명", "편의점을 털어라", "우리 집에 왜 왔니", "오리엔탈 특급열차 살인사건", "산장편"] },
-            { id: "sherlock_gijang", name: "셜록홈즈 기장정관점", coords: [35.3223, 129.1771], themes: ["유품정리사", "트라이앵글"] }
+            { id: "playpoint_haeundae", region: "해운대", name: "플레이포인트랩 해운대점", coords: [35.1594, 129.1610], themes: ["BANG", "문앞에두고벨눌러주세요", "별의별", "리허설", "몽글숲", "캣츠아이", "점점"] },
+            { id: "playpoint_origin", region: "서면", name: "플레이포인트랩 서면 오리진", coords: [35.1545, 129.0602], themes: ["집으로", "모모게임", "그날 사진관", "재: 트라우마"] },
+            { id: "playpoint_tantan", region: "서면", name: "플레이포인트랩 탄탄 스트리트", coords: [35.1548, 129.0605], themes: ["스팀 스파이어 사가", "근비빌라401호", "토이메이커", "F등급킬러: 다정리"] },
+            { id: "beatphobia_seomyeon_dungeon", region: "서면", name: "비트포비아 서면 던전", coords: [35.1531, 129.0596], themes: ["오늘 나는", "꿈의 공장", "날씨의 신"] },
+            { id: "beatphobia_dungeon_red", region: "서면", name: "비트포비아 던전 레드", coords: [35.1528, 129.0593], themes: ["당감동 정육점", "고시원 살인사건", "산장으로의 초대", "AMEN", "부적", "어느 수집가의 집"] },
+            { id: "murderparker_busan", region: "서면", name: "머더파커 부산점", coords: [35.1558, 129.0585], themes: ["사라진 보물2056", "액션(Action)", "도굴왕", "잭(JACK)", "레디(Ready)"] },
+            { id: "mission_pnu", region: "부산대", name: "미션 이스케이프 부산대점", coords: [35.2315, 129.0863], themes: ["비밀프로젝트", "영재는 못말려", "타짜", "신입사원", "변호사 업무일지"] },
+            { id: "therock_pnu", region: "부산대", name: "더락 이스케이프 부산대점", coords: [35.2310, 129.0880], themes: ["루시드 드리밍", "하울의 안 움직이는 성", "최후의 만찬", "절대반지의 비밀", "의뢰인"] },
+            { id: "therock_ksu", region: "경성대", name: "더락 이스케이프 경성대점", coords: [35.1375, 129.0995], themes: ["선과 칠호의 행방불명", "편의점을 털어라", "우리 집에 왜 왔니", "오리엔탈 특급열차 살인사건", "산장편"] },
+            { id: "sherlock_gijang", region: "기장/정관", name: "셜록홈즈 기장정관점", coords: [35.3223, 129.1771], themes: ["유품정리사", "트라이앵글"] }
+            // ... 다이아에그, 비밀의 화원 등 추가 가능
         ];
 
         let progress = JSON.parse(localStorage.getItem('escapeProgress')) || {};
 
+        function renderList() {
+            const listDiv = document.getElementById('status-list');
+            listDiv.innerHTML = '';
+
+            // 지역별로 그룹화
+            const grouped = {};
+            escapeRooms.forEach(room => {
+                if (!grouped[room.region]) grouped[room.region] = [];
+                grouped[room.region].push(room);
+            });
+
+            for (const region in grouped) {
+                const section = document.createElement('div');
+                section.className = 'region-section';
+                
+                let html = `<div class="region-title"><span>📍 ${region}</span></div>`;
+                html += `<table class="room-table"><tr><th>매장명</th><th>테마 (클릭하여 체크)</th></tr>`;
+                
+                grouped[region].forEach(room => {
+                    const doneThemes = progress[room.id] || [];
+                    const isAllDone = room.themes.length > 0 && room.themes.every(t => doneThemes.includes(t));
+                    const badge = isAllDone ? '<span class="status-badge all-done-badge">완료!</span>' : `<span class="status-badge">${doneThemes.length}/${room.themes.length}</span>`;
+                    
+                    html += `<tr>
+                        <td style="width:25%">${room.name} ${badge}</td>
+                        <td>`;
+                    room.themes.forEach(t => {
+                        const isDone = doneThemes.includes(t) ? 'done' : '';
+                        html += `<span class="theme-pill ${isDone}" onclick="toggle('${room.id}','${t}')">${t}</span>`;
+                    });
+                    html += `</td></tr>`;
+                });
+                
+                html += `</table>`;
+                section.innerHTML = html;
+                listDiv.appendChild(section);
+            }
+        }
+
         function updateMap() {
-            map.eachLayer(l => { if (l instanceof L.Marker) map.removeLayer(l); });
+            markers.clearLayers();
             escapeRooms.forEach(room => {
                 const doneThemes = progress[room.id] || [];
                 const isAllDone = room.themes.length > 0 && room.themes.every(t => doneThemes.includes(t));
-                const marker = L.marker(room.coords).addTo(map);
-                if (isAllDone) marker._icon.classList.add('completed-marker');
-
-                const popup = document.createElement('div');
-                popup.className = 'popup-content';
-                popup.innerHTML = `<b>${room.name}</b> (${doneThemes.length}/${room.themes.length})<br><br>`;
-                room.themes.forEach(t => {
-                    const checked = doneThemes.includes(t) ? 'checked' : '';
-                    popup.innerHTML += `<div class="theme-item"><input type="checkbox" onchange="toggle('${room.id}','${t}')" ${checked}> ${t}</div>`;
-                });
-                marker.bindPopup(popup);
+                const marker = L.marker(room.coords);
+                if (isAllDone) {
+                    const icon = L.divIcon({ html: '<img src="https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png" class="completed-marker">' });
+                    marker.setIcon(icon);
+                }
+                marker.bindPopup(`<b>${room.name}</b><br>하단 리스트에서 체크하세요!`);
+                markers.addLayer(marker);
             });
+            map.addLayer(markers);
         }
 
         window.toggle = (id, theme) => {
@@ -63,9 +125,11 @@
             else progress[id].push(theme);
             localStorage.setItem('escapeProgress', JSON.stringify(progress));
             updateMap();
+            renderList();
         };
 
         updateMap();
+        renderList();
     </script>
 </body>
 </html>
